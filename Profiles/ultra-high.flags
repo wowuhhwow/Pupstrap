@@ -1,0 +1,42 @@
+# wraith-fflag-profile 1
+# Max quality: highest mesh LOD, full-res textures, 8x MSAA, bloom, SSAO, long grass and shadows.
+# Load on the Roblox window before pressing Play.
+roblox_version=version-11f155f3450f4c8e
+DebugFRMQualityLevelOverride=21
+DebugForceMSAASamples=8
+DebugFRMOptionalMSAALevelOverride=4
+DebugRenderMeshForceLod=0
+SlimForceLOD=0
+SlimLODBias=0
+CSGLevelOfDetailSwitchingDistance=400
+CSGLevelOfDetailSwitchingDistanceL12=150
+CSGLevelOfDetailSwitchingDistanceL23=300
+CSGLevelOfDetailSwitchingDistanceL34=500
+EnableCoarseShading=0
+DebugForceAnisoOff=0
+DebugTextureManagerSkipMips=0
+DebugAdditionalNumberOfMipsToSkipForNonAlbedoTextures=0
+DebugLimitMinTextureResolutionWhenSkipMips=512
+GraphicsTextureReductionVulkan=0
+GraphicsTextureReductionD3D11=0
+RenderTextureMipBias=0
+TTranscoderDecalPixelated=0
+TextureCompositorLowResFactor=1
+TerrainOTAMaxTextureSize=512
+SSAOMipLevels=4
+BloomFrmCutoff=1
+FRMMaxGrassDistance=2000
+FRMMinGrassDistance=0
+RenderShadowHugeRadius=800
+RenderShadowResolutionQualityByRam=4
+RenderParticlesSimulateQualityLevelBase=10
+CameraFarZPlane=20000
+CoreGlyphAtlasSize=2048
+DevGlyphAtlasWidth=2048
+DevGlyphAtlasHeight=2048
+UITextureMaxRenderTextureSize=2048
+UITextureHighMaxRenderTextureSize=2048
+UITextureMediumMaxRenderTextureSize=2048
+UITextureLowMaxRenderTextureSize=1024
+GraphicsOptimizationModeFRMFrameRateTarget=60
+GraphicsOptimizationModeMaxFrameTimeTargetMs=33

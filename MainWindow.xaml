@@ -1,0 +1,46 @@
+<ui:FluentWindow x:Class="Pupstrap.MainWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:pages="clr-namespace:Pupstrap.Pages"
+                 Title="Pupstrap"
+                 Icon="pack://application:,,,/Assets/pupstrap.ico"
+                 Width="1040" Height="680" MinWidth="860" MinHeight="540"
+                 WindowStartupLocation="CenterScreen"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowBackdropType="Mica"
+                 WindowCornerPreference="Round">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0" Title="Pupstrap">
+            <ui:TitleBar.Icon>
+                <ui:ImageIcon Source="pack://application:,,,/Assets/pupstrap.png" Width="18" Height="18" />
+            </ui:TitleBar.Icon>
+        </ui:TitleBar>
+
+        <ui:NavigationView x:Name="RootNavigation" Grid.Row="1"
+                           PaneDisplayMode="Left"
+                           IsBackButtonVisible="Collapsed"
+                           IsPaneToggleVisible="False"
+                           OpenPaneLength="220">
+            <ui:NavigationView.MenuItems>
+                <ui:NavigationViewItem Content="Home" Icon="{ui:SymbolIcon Home24}" TargetPageType="{x:Type pages:LaunchPage}" />
+                <ui:NavigationViewItem Content="Accounts" Icon="{ui:SymbolIcon People24}" TargetPageType="{x:Type pages:AccountsPage}" />
+                <ui:NavigationViewItem Content="Integrations" Icon="{ui:SymbolIcon PlugConnected24}" TargetPageType="{x:Type pages:IntegrationsPage}" />
+                <ui:NavigationViewItem Content="Mods" Icon="{ui:SymbolIcon WrenchScrewdriver24}" TargetPageType="{x:Type pages:ModsPage}" />
+                <ui:NavigationViewItem Content="Fast Flags" Icon="{ui:SymbolIcon Flag24}" TargetPageType="{x:Type pages:FastFlagsPage}" />
+                <ui:NavigationViewItem Content="Live Flags" Icon="{ui:SymbolIcon Flash24}" TargetPageType="{x:Type pages:LiveFlagsPage}" />
+                <ui:NavigationViewItem Content="Appearance" Icon="{ui:SymbolIcon PaintBrush24}" TargetPageType="{x:Type pages:AppearancePage}" />
+                <ui:NavigationViewItem Content="Behaviour" Icon="{ui:SymbolIcon Settings24}" TargetPageType="{x:Type pages:BehaviourPage}" />
+                <ui:NavigationViewItem Content="Deployment" Icon="{ui:SymbolIcon ArrowDownload24}" TargetPageType="{x:Type pages:DeploymentPage}" />
+            </ui:NavigationView.MenuItems>
+            <ui:NavigationView.FooterMenuItems>
+                <ui:NavigationViewItem Content="About" Icon="{ui:SymbolIcon Info24}" TargetPageType="{x:Type pages:AboutPage}" />
+            </ui:NavigationView.FooterMenuItems>
+        </ui:NavigationView>
+    </Grid>
+</ui:FluentWindow>
