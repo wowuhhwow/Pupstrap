@@ -66,12 +66,21 @@ public partial class App : Application
         _menuOpen = true;
         var window = new MainWindow(page);
         MainWindow = window;
-        window.Closed += (_, _) =>
+        window.Closed += async (_, _) =>
         {
             _menuOpen = false;
-            if (_activeSessions == 0) Shutdown();
+            if (_activeSessions > 0) return;
+            await WhileGuardingAsync();
+            if (_activeSessions == 0 && !_menuOpen) Shutdown();
         };
         window.Show();
+    }
+
+    /// <summary>Keeps Pupstrap running in the background while live flags are being kept applied.</summary>
+    private static async Task WhileGuardingAsync()
+    {
+        if (LiveFlags.LiveSession.IsGuarding) Logger.Info("Menu closed, keeping live flags applied until Roblox exits");
+        while (LiveFlags.LiveSession.IsGuarding) await Task.Delay(2000);
     }
 
     /// <summary>Full bootstrap flow used when Pupstrap is started by a roblox-player link.</summary>
@@ -178,6 +187,7 @@ public partial class App : Application
             {
                 session.Dispose();
                 _activeSessions--;
+                if (_activeSessions == 0 && !_menuOpen) await WhileGuardingAsync();
                 if (_activeSessions == 0 && !_menuOpen)
                 {
                     MultiInstance.Release();

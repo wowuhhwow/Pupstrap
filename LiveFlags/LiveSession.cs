@@ -23,7 +23,30 @@ public static class LiveSession
 
     public static event Action? Changed;
 
+    /// <summary>Raised on the UI thread after the guard puts back flags Roblox reset.</summary>
+    public static event Action<IReadOnlyList<string>>? Restored;
+
+    private static FlagGuard? _guard;
+
     public static bool IsAttached => Memory is { IsAlive: true };
+
+    public static bool IsGuarding => _guard is not null && ChangeList.Count > 0 && IsAttached;
+
+    /// <summary>Starts or stops rewriting flags Roblox resets, following the Keep applied setting.</summary>
+    public static void UpdateGuard()
+    {
+        var wanted = Store.Settings.LiveKeepApplied && Memory is { IsAlive: true };
+        if (!wanted)
+        {
+            _guard?.Dispose();
+            _guard = null;
+            return;
+        }
+        if (_guard is not null) return;
+        _guard = new FlagGuard(Memory!);
+        _guard.Restored += names => System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => Restored?.Invoke(names));
+        foreach (var change in ChangeList) _guard.Set(change.Name, change.Rva, change.Current);
+    }
 
     public static FlagDump LoadDump(string path)
     {
@@ -60,12 +83,15 @@ public static class LiveSession
         }
         Memory = memory;
         Logger.Info($"Attached to Roblox pid {memory.ProcessId} ({memory.Version})");
+        UpdateGuard();
         Changed?.Invoke();
         return memory;
     }
 
     public static void Detach()
     {
+        _guard?.Dispose();
+        _guard = null;
         Memory?.Dispose();
         Memory = null;
         ChangeList.Clear();
@@ -76,6 +102,8 @@ public static class LiveSession
     {
         if (Memory is null || !Memory.IsAlive)
         {
+            _guard?.Dispose();
+            _guard = null;
             Memory?.Dispose();
             Memory = null;
             ChangeList.Clear();
@@ -104,11 +132,14 @@ public static class LiveSession
         {
             existing.Current = value;
         }
+        if (ChangeList.Any(c => c.Name == flag.Name)) _guard?.Set(flag.Name, flag.Rva, value);
+        else _guard?.Remove(flag.Name);
         Changed?.Invoke();
     }
 
     public static void Revert(FlagChange change)
     {
+        _guard?.Remove(change.Name);
         RequireMemory().WriteInt32(change.Rva, change.Original);
         ChangeList.Remove(change);
         Changed?.Invoke();

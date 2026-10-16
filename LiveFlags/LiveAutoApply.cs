@@ -42,17 +42,10 @@ public static class LiveAutoApply
 
         try
         {
-            using var memory = RobloxMemory.Attach(pid);
-            int applied = 0, skipped = 0;
-            foreach (var (name, value) in profile.Values)
-            {
-                var flag = dump.Find(name);
-                if (flag is null) { skipped++; continue; }
-                if (memory.ReadInt32(flag.Rva) != value) memory.WriteInt32(flag.Rva, value);
-                applied++;
-            }
-            Logger.Info($"Auto-applied {profile.Name} to pid {pid}: {applied} written, {skipped} not in dump");
-            NotificationWindow.Show("Live profile applied", $"{profile.Name}: {applied} flags written.");
+            LiveSession.Attach(pid);
+            var result = LiveSession.ApplyProfile(profile);
+            Logger.Info($"Auto-applied {profile.Name} to pid {pid}");
+            NotificationWindow.Show("Live profile applied", $"{profile.Name}: {result.Applied} flags written.");
         }
         catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
         {

@@ -58,7 +58,7 @@ public static class Bootstrapper
             if (!IsVersionInUse(versionDir)) ModManager.Apply(versionDir, settings);
             else Logger.Info("Roblox is running from this version, leaving mod files alone this launch");
 
-            ClientAppSettings.Write(versionDir, settings.FastFlags);
+            ClientAppSettings.Write(versionDir, settings.ActiveFastFlags());
 
             if (settings.CleanupOldVersions)
                 Installer.CleanupOldVersions(version, settings.PinnedVersion);

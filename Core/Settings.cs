@@ -41,9 +41,22 @@ public sealed class Settings
     public bool UseModsFolder { get; set; } = true;
 
     public Dictionary<string, string> FastFlags { get; set; } = new();
+    public bool FastFlagsEnabled { get; set; } = true;
+    public List<string> DisabledFastFlags { get; set; } = new();
+
+    /// <summary>The flags that actually get written to ClientAppSettings.json.</summary>
+    public Dictionary<string, string> ActiveFastFlags()
+    {
+        if (!FastFlagsEnabled) return new();
+        var off = new HashSet<string>(DisabledFastFlags, StringComparer.OrdinalIgnoreCase);
+        return FastFlags.Where(f => !off.Contains(f.Key)).ToDictionary(f => f.Key, f => f.Value);
+    }
+
+    public bool IsFastFlagOn(string name) => !DisabledFastFlags.Contains(name, StringComparer.OrdinalIgnoreCase);
     public string LiveDumpPath { get; set; } = "";
     public string LiveProfileOnLaunch { get; set; } = "";
     public int LiveApplyDelaySeconds { get; set; } = 2;
+    public bool LiveKeepApplied { get; set; } = true;
 
     public string LastPlaceInput { get; set; } = "";
 }

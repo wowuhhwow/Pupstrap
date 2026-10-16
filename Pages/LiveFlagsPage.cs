@@ -19,6 +19,7 @@ public sealed class LiveFlagsPage : PupPage
 
     private readonly TextBlock _dumpInfo = Ui.Secondary("");
     private readonly TextBlock _attachInfo = Ui.Secondary("");
+    private readonly TextBlock _restoredInfo = new() { Margin = new Thickness(4, 0, 0, 8), TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed };
     private readonly WpfTextBox _search = new() { PlaceholderText = "Search flags (Ctrl+F)", Icon = new SymbolIcon(SymbolRegular.Search24) };
     private readonly ListBox _results = new() { Height = 330, DisplayMemberPath = nameof(FlagEntry.Name) };
     private readonly TextBlock _resultCount = Ui.Secondary("");
@@ -60,6 +61,15 @@ public sealed class LiveFlagsPage : PupPage
         };
         _dumpInfo.Margin = new Thickness(4, 4, 0, 0);
 
+        var keepCard = Ui.Card("Keep applied",
+            "Roblox resets some flags when you join a new game. This checks five times a second and puts your values back, so you don't have to reapply. Pupstrap stays running in the background until Roblox closes.",
+            Ui.Toggle(s.LiveKeepApplied, v =>
+            {
+                s.LiveKeepApplied = v;
+                Store.SaveSettings();
+                LiveSession.UpdateGuard();
+            }), SymbolRegular.ShieldCheckmark24);
+
         var attachCard = Ui.Card("Roblox", "Writes go straight into the running client. Graphics flags are mostly read when a place loads, so set them on the home screen and then join.",
             Ui.Row(_attachInfo,
                 Ui.Button("Attach", Attach, ControlAppearance.Primary, SymbolRegular.PlugConnected24),
@@ -86,7 +96,7 @@ public sealed class LiveFlagsPage : PupPage
         Content = Ui.Page("Live Flags", "Edit any fast flag in a running Roblox, including the ones ClientAppSettings.json ignores.",
             Ui.Info("Use with care", "This writes raw 4-byte values into Roblox's memory at the dump's offsets. Use a dump for the exact version you run. Values are lost when Roblox closes.",
                 InfoBarSeverity.Warning),
-            dumpCard, attachCard, profilesCard, autoCard,
+            dumpCard, attachCard, keepCard, _restoredInfo, profilesCard, autoCard,
             Ui.Section("Flags"),
             BuildBrowser(),
             Ui.Section("Changed this session"),
@@ -104,7 +114,12 @@ public sealed class LiveFlagsPage : PupPage
         };
 
         LiveSession.Changed += Refresh;
-        Unloaded += (_, _) => LiveSession.Changed -= Refresh;
+        LiveSession.Restored += OnRestored;
+        Unloaded += (_, _) =>
+        {
+            LiveSession.Changed -= Refresh;
+            LiveSession.Restored -= OnRestored;
+        };
         Refresh();
         RunSearch();
     }
@@ -156,6 +171,13 @@ public sealed class LiveFlagsPage : PupPage
     }
 
     private FlagEntry? Selected => _results.SelectedItem as FlagEntry;
+
+    private void OnRestored(IReadOnlyList<string> names)
+    {
+        var list = string.Join(", ", names.Take(6)) + (names.Count > 6 ? $" and {names.Count - 6} more" : "");
+        _restoredInfo.Text = $"{DateTime.Now:HH:mm:ss}  Roblox reset {names.Count} flag(s), put back: {list}";
+        _restoredInfo.Visibility = Visibility.Visible;
+    }
 
     private void LoadDump() => Try(() =>
     {
