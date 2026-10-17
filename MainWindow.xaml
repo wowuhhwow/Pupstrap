@@ -34,6 +34,7 @@
                 <ui:NavigationViewItem Content="Mods" Icon="{ui:SymbolIcon WrenchScrewdriver24}" TargetPageType="{x:Type pages:ModsPage}" />
                 <ui:NavigationViewItem Content="Fast Flags" Icon="{ui:SymbolIcon Flag24}" TargetPageType="{x:Type pages:FastFlagsPage}" />
                 <ui:NavigationViewItem Content="Live Flags" Icon="{ui:SymbolIcon Flash24}" TargetPageType="{x:Type pages:LiveFlagsPage}" />
+                <ui:NavigationViewItem Content="Global Settings" Icon="{ui:SymbolIcon Globe24}" TargetPageType="{x:Type pages:GlobalSettingsPage}" />
                 <ui:NavigationViewItem Content="Appearance" Icon="{ui:SymbolIcon PaintBrush24}" TargetPageType="{x:Type pages:AppearancePage}" />
                 <ui:NavigationViewItem Content="Behaviour" Icon="{ui:SymbolIcon Settings24}" TargetPageType="{x:Type pages:BehaviourPage}" />
                 <ui:NavigationViewItem Content="Deployment" Icon="{ui:SymbolIcon ArrowDownload24}" TargetPageType="{x:Type pages:DeploymentPage}" />

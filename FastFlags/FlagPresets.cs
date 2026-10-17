@@ -101,27 +101,12 @@ public static class FlagPresets
                 ["DFIntCSGLevelOfDetailSwitchingDistance"] = "0", ["DFIntCSGLevelOfDetailSwitchingDistanceL12"] = "0",
                 ["DFIntCSGLevelOfDetailSwitchingDistanceL23"] = "0", ["DFIntCSGLevelOfDetailSwitchingDistanceL34"] = "0",
             }),
-        new("Gray sky", "Replaces the skybox with flat gray.",
+        new("Gray sky", "Flat gray sky. Only Roblox's default sky listens to this. A game's own skybox ignores it. If Live Flags is attached, this is written into the running client too.",
             new Dictionary<string, string> { ["FFlagDebugSkyGray"] = "True" }),
         new("Alt+Enter fullscreen fix", "Lets Alt+Enter toggle exclusive fullscreen.",
             new Dictionary<string, string> { ["FFlagHandleAltEnterFullscreenManually"] = "False" }),
     };
 
-    public static int ReadFpsCap(IDictionary<string, string> flags) =>
-        flags.TryGetValue("DFIntTaskSchedulerTargetFps", out var v) && int.TryParse(v, out var fps) ? fps : 0;
-
-    public static void WriteFpsCap(IDictionary<string, string> flags, int fps)
-    {
-        if (fps <= 0)
-        {
-            flags.Remove("DFIntTaskSchedulerTargetFps");
-            flags.Remove("FFlagTaskSchedulerLimitTargetFpsTo2402");
-            return;
-        }
-        flags["DFIntTaskSchedulerTargetFps"] = fps.ToString();
-        if (fps > 240) flags["FFlagTaskSchedulerLimitTargetFpsTo2402"] = "False";
-        else flags.Remove("FFlagTaskSchedulerLimitTargetFpsTo2402");
-    }
 }
 
 public static class ClientAppSettings

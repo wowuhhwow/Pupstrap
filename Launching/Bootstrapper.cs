@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Xml;
 using Pupstrap.Core;
 using Pupstrap.Deployment;
 using Pupstrap.FastFlags;
@@ -59,6 +60,12 @@ public static class Bootstrapper
             else Logger.Info("Roblox is running from this version, leaving mod files alone this launch");
 
             ClientAppSettings.Write(versionDir, settings.ActiveFastFlags());
+
+            try { RobloxGlobalSettings.ApplyPending(); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or XmlException)
+            {
+                Logger.Warn($"Couldn't write Roblox settings: {ex.Message}");
+            }
 
             if (settings.CleanupOldVersions)
                 Installer.CleanupOldVersions(version, settings.PinnedVersion);

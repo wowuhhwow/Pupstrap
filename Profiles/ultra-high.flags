@@ -1,4 +1,5 @@
 # wraith-fflag-profile 1
+# revision=2
 # Max quality: highest mesh LOD, full-res textures, 8x MSAA, bloom, SSAO, long grass and shadows.
 # Load on the Roblox window before pressing Play.
 roblox_version=version-11f155f3450f4c8e

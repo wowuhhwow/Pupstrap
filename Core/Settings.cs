@@ -53,6 +53,8 @@ public sealed class Settings
     }
 
     public bool IsFastFlagOn(string name) => !DisabledFastFlags.Contains(name, StringComparer.OrdinalIgnoreCase);
+
+    public Dictionary<string, string> PendingGlobalSettings { get; set; } = new();
     public string LiveDumpPath { get; set; } = "";
     public string LiveProfileOnLaunch { get; set; } = "";
     public int LiveApplyDelaySeconds { get; set; } = 2;
@@ -86,6 +88,8 @@ public static class Store
     {
         Paths.EnsureCreated();
         Settings = Read<Settings>(Paths.SettingsFile) ?? new Settings();
+        if (Settings.FastFlags.Remove("DFIntTaskSchedulerTargetFps") | Settings.FastFlags.Remove("FFlagTaskSchedulerLimitTargetFpsTo2402"))
+            SaveSettings();
         State = Read<State>(Paths.StateFile) ?? new State();
     }
 

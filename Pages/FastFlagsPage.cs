@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Pupstrap.Core;
 using Pupstrap.FastFlags;
+using Pupstrap.LiveFlags;
 using Pupstrap.UI;
 using Wpf.Ui.Controls;
 using DataGrid = System.Windows.Controls.DataGrid;
@@ -68,14 +69,6 @@ public sealed class FastFlagsPage : PupPage
             Ui.Toggle(s.FastFlagsEnabled, v => { s.FastFlagsEnabled = v; Commit(); }), SymbolRegular.Power24);
 
         var presets = new List<UIElement>();
-        var fps = Ui.Text(FlagPresets.ReadFpsCap(s.FastFlags) is var cap && cap > 0 ? cap.ToString() : "", v =>
-        {
-            FlagPresets.WriteFpsCap(s.FastFlags, int.TryParse(v, out var n) ? n : 0);
-            Commit();
-        }, "Default (60)", 120);
-        presets.Add(Ui.Card("FPS limit", "Frame rate cap. Leave empty for Roblox's default. Turn off VSync in-game to go above your refresh rate.",
-            fps, SymbolRegular.TopSpeed24));
-
         foreach (var choice in FlagPresets.Choices)
         {
             presets.Add(Ui.Card(choice.Title, choice.Description,
@@ -84,7 +77,12 @@ public sealed class FastFlagsPage : PupPage
         foreach (var toggle in FlagPresets.Toggles)
         {
             presets.Add(Ui.Card(toggle.Title, toggle.Description,
-                Ui.Toggle(toggle.IsOn(s.FastFlags), on => { toggle.Set(s.FastFlags, on); Commit(); }), SymbolRegular.ToggleRight24));
+                Ui.Toggle(toggle.IsOn(s.FastFlags), on =>
+                {
+                    toggle.Set(s.FastFlags, on);
+                    if (toggle.Title == "Gray sky") LiveSession.TrySet("DebugSkyGray", on ? 1 : 0);
+                    Commit();
+                }), SymbolRegular.ToggleRight24));
         }
 
         _newName = new Wpf.Ui.Controls.TextBox { PlaceholderText = "Flag name, e.g. FFlagDebugGraphicsPreferD3D11", MinWidth = 320, Margin = new Thickness(0, 0, 8, 0) };

@@ -27,10 +27,13 @@ public static class LiveSession
     public static event Action<IReadOnlyList<string>>? Restored;
 
     private static FlagGuard? _guard;
+    private static bool _reconnecting;
+
+    public static FlagProfile? LastProfile { get; private set; }
 
     public static bool IsAttached => Memory is { IsAlive: true };
 
-    public static bool IsGuarding => _guard is not null && ChangeList.Count > 0 && IsAttached;
+    public static bool IsGuarding => _reconnecting || (_guard is not null && ChangeList.Count > 0 && IsAttached);
 
     /// <summary>Starts or stops rewriting flags Roblox resets, following the Keep applied setting.</summary>
     public static void UpdateGuard()
@@ -45,6 +48,7 @@ public static class LiveSession
         if (_guard is not null) return;
         _guard = new FlagGuard(Memory!);
         _guard.Restored += names => System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => Restored?.Invoke(names));
+        _guard.Died += () => System.Windows.Application.Current?.Dispatcher.BeginInvoke(OnRobloxExited);
         foreach (var change in ChangeList) _guard.Set(change.Name, change.Rva, change.Current);
     }
 
@@ -72,7 +76,7 @@ public static class LiveSession
     /// <summary>Attaches to Roblox. Refuses when the running client isn't the version the dump was made for.</summary>
     public static RobloxMemory Attach(int? pid = null)
     {
-        Detach();
+        Detach(forgetProfile: false);
         var memory = RobloxMemory.Attach(pid);
         if (Dump is not null && memory.Version.Length > 0 && Dump.RobloxVersion.Length > 0 &&
             !memory.Version.Equals(Dump.RobloxVersion, StringComparison.OrdinalIgnoreCase))
@@ -88,8 +92,15 @@ public static class LiveSession
         return memory;
     }
 
-    public static void Detach()
+    public static void Detach() => Detach(forgetProfile: true);
+
+    private static void Detach(bool forgetProfile)
     {
+        if (forgetProfile)
+        {
+            _reconnecting = false;
+            LastProfile = null;
+        }
         _guard?.Dispose();
         _guard = null;
         Memory?.Dispose();
@@ -179,8 +190,70 @@ public static class LiveSession
                 Logger.Warn($"{name}: {ex.Message}");
             }
         }
+        LastProfile = profile;
         Logger.Info($"Profile {profile.Name}: applied {applied}, skipped {skipped}, failed {failed}, reverted {reverted}");
         return new ProfileResult(applied, skipped, failed, reverted);
+    }
+
+    /// <summary>Writes one flag when a dump is loaded and Roblox is attached. Used by presets such as gray sky.</summary>
+    public static bool TrySet(string name, int value)
+    {
+        if (!IsAttached || Dump?.Find(name) is not { } flag) return false;
+        Write(flag, value);
+        return true;
+    }
+
+    private static void OnRobloxExited()
+    {
+        var profile = LastProfile;
+        if (!Store.Settings.LiveKeepApplied || profile is null)
+        {
+            Detach(forgetProfile: false);
+            return;
+        }
+        Detach(forgetProfile: false);
+        _reconnecting = true;
+        Logger.Info($"Roblox closed. Waiting to put {profile.Name} back on the next one.");
+        Changed?.Invoke();
+        _ = Task.Run(() => ReconnectAsync(profile));
+    }
+
+    private static async Task ReconnectAsync(FlagProfile profile)
+    {
+        try
+        {
+            for (var i = 0; i < 90 && _reconnecting; i++)
+            {
+                var process = System.Diagnostics.Process.GetProcessesByName("RobloxPlayerBeta").FirstOrDefault(p => !p.HasExited);
+                if (process is not null)
+                {
+                    try
+                    {
+                        Attach(process.Id);
+                        var result = ApplyProfile(profile);
+                        _reconnecting = false;
+                        Logger.Info($"Reattached and reapplied {profile.Name}: {result.Applied} flags");
+                        System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+                            UI.NotificationWindow.Show("Live profile restored", $"{profile.Name} was put back on the new Roblox."));
+                        return;
+                    }
+                    catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+                    {
+                        Logger.Warn($"Reattach failed: {ex.Message}");
+                    }
+                }
+                await Task.Delay(2000);
+            }
+        }
+        finally
+        {
+            if (_reconnecting)
+            {
+                _reconnecting = false;
+                Logger.Info("Stopped waiting to reapply the live profile");
+                System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => Changed?.Invoke());
+            }
+        }
     }
 
     public static FlagProfile SnapshotProfile(string name)

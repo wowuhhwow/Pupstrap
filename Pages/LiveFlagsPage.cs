@@ -7,6 +7,7 @@ using Pupstrap.Core;
 using Pupstrap.LiveFlags;
 using Pupstrap.UI;
 using Wpf.Ui.Controls;
+using DataGrid = System.Windows.Controls.DataGrid;
 using ListBox = System.Windows.Controls.ListBox;
 using TextBlock = System.Windows.Controls.TextBlock;
 using WpfTextBox = Wpf.Ui.Controls.TextBox;
@@ -28,7 +29,13 @@ public sealed class LiveFlagsPage : PupPage
     private readonly WpfTextBox _value = new() { PlaceholderText = "Int32 value", MinWidth = 140 };
     private readonly StackPanel _changes = new();
     private readonly DispatcherTimer _searchDelay = new() { Interval = TimeSpan.FromMilliseconds(150) };
+    private readonly TextBlock _profileInfo = Ui.Secondary("Pick a profile to see its flags.");
+    private readonly DataGrid _profileGrid;
     private ComboBox _autoProfile = new();
+    private ComboBox _viewProfile = new();
+    private readonly List<string> _profileFiles = new();
+    private FlagProfile? _viewed;
+    private string _viewedPath = "";
 
     public LiveFlagsPage()
     {
@@ -62,7 +69,7 @@ public sealed class LiveFlagsPage : PupPage
         _dumpInfo.Margin = new Thickness(4, 4, 0, 0);
 
         var keepCard = Ui.Card("Keep applied",
-            "Roblox resets some flags when you join a new game. This checks five times a second and puts your values back, so you don't have to reapply. Pupstrap stays running in the background until Roblox closes.",
+            "Roblox resets some flags when you join a new game. This puts them back immediately and keeps writing them for two seconds, which is when the game actually reads them. If Roblox closes, Pupstrap waits and puts the same profile on the next one.",
             Ui.Toggle(s.LiveKeepApplied, v =>
             {
                 s.LiveKeepApplied = v;
@@ -76,13 +83,39 @@ public sealed class LiveFlagsPage : PupPage
                 Ui.Button("Detach", () => LiveSession.Detach())),
             SymbolRegular.PlugConnected24);
 
+        _profileGrid = new DataGrid
+        {
+            AutoGenerateColumns = false,
+            IsReadOnly = true,
+            CanUserAddRows = false,
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+            MinHeight = 120,
+            MaxHeight = 280,
+            Margin = new Thickness(0, 6, 0, 0),
+        };
+        _profileGrid.Columns.Add(new DataGridTextColumn { Header = "Flag", Binding = new System.Windows.Data.Binding("Name"), Width = new DataGridLength(3, DataGridLengthUnitType.Star) });
+        _profileGrid.Columns.Add(new DataGridTextColumn { Header = "Value", Binding = new System.Windows.Data.Binding("Value"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+        _profileGrid.Columns.Add(new DataGridTextColumn { Header = "In dump", Binding = new System.Windows.Data.Binding("InDump"), Width = new DataGridLength(90) });
+
         _autoProfile = BuildAutoProfileCombo();
-        var profilesCard = Ui.Card("Profiles", "Loading a profile first reverts anything an earlier profile set, so they never stack.",
-            Ui.Row(
-                Ui.Button("Load profile", LoadProfile, ControlAppearance.Primary, SymbolRegular.FolderOpen24),
-                Ui.Button("Save profile", SaveProfile, ControlAppearance.Secondary, SymbolRegular.Save24),
-                Ui.Button("Open folder", () => Ui.OpenFolder(FlagProfile.Folder))),
-            SymbolRegular.DocumentCopy24);
+        _viewProfile = BuildViewProfileCombo();
+        var profilesCard = new StackPanel
+        {
+            Margin = new Thickness(0, 0, 0, 6),
+            Children =
+            {
+                Ui.Card("Profiles", "Pick a profile to see every flag in it. Applying first reverts anything an earlier profile set, so they never stack.",
+                    _viewProfile, SymbolRegular.DocumentCopy24),
+                Ui.Row(
+                    Ui.Button("Apply", ApplyViewedProfile, ControlAppearance.Primary, SymbolRegular.Play24),
+                    Ui.Button("From file", LoadProfile, ControlAppearance.Secondary, SymbolRegular.FolderOpen24),
+                    Ui.Button("Save profile", SaveProfile, ControlAppearance.Secondary, SymbolRegular.Save24),
+                    Ui.Button("Open folder", () => Ui.OpenFolder(FlagProfile.Folder))),
+                _profileInfo,
+                _profileGrid,
+            },
+        };
+        _profileInfo.Margin = new Thickness(4, 8, 0, 0);
         var autoCard = Ui.Card("Apply on launch",
             "Every time Pupstrap starts Roblox it waits for the client and writes this profile automatically, but only when the dump matches that exact version.",
             Ui.Row(_autoProfile,
@@ -170,6 +203,78 @@ public sealed class LiveFlagsPage : PupPage
         }, 170);
     }
 
+    private ComboBox BuildViewProfileCombo()
+    {
+        _profileFiles.Clear();
+        _profileFiles.AddRange(FlagProfile.Available());
+        var names = _profileFiles.Select(f => Path.GetFileNameWithoutExtension(f)).ToList();
+        if (names.Count == 0) names.Add("(no profiles)");
+        var selected = 0;
+        var launch = Store.Settings.LiveProfileOnLaunch;
+        if (launch.Length > 0)
+        {
+            var i = _profileFiles.FindIndex(f => f.Equals(launch, StringComparison.OrdinalIgnoreCase));
+            if (i >= 0) selected = i;
+        }
+        var combo = Ui.Combo(names, selected, i =>
+        {
+            if (i >= 0 && i < _profileFiles.Count) ShowProfile(_profileFiles[i]);
+        }, 200);
+        if (_profileFiles.Count > 0) ShowProfile(_profileFiles[selected]);
+        return combo;
+    }
+
+    private void ShowProfile(string path)
+    {
+        try
+        {
+            var profile = FlagProfile.Load(path);
+            _viewed = profile;
+            _viewedPath = path;
+            var dump = LiveSession.Dump;
+            var missing = dump is null ? 0 : profile.Values.Count(v => dump.Find(v.Key) is null);
+            var info = $"{profile.Name}: {profile.Values.Count} flag{(profile.Values.Count == 1 ? "" : "s")}";
+            if (profile.RobloxVersion.Length > 0) info += $"  ·  made for {profile.RobloxVersion}";
+            if (dump is not null && missing > 0) info += $"  ·  {missing} not in this dump";
+            _profileInfo.Text = info;
+            _profileGrid.ItemsSource = profile.Values.Select(v => new
+            {
+                Name = v.Key,
+                Value = v.Value.ToString(CultureInfo.InvariantCulture),
+                InDump = dump is null ? "" : dump.Find(v.Key) is null ? "No" : "Yes",
+            }).ToList();
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            _viewed = null;
+            _viewedPath = "";
+            _profileInfo.Text = ex.Message;
+            _profileGrid.ItemsSource = null;
+        }
+    }
+
+    private void ApplyViewedProfile()
+    {
+        if (_viewed is null)
+        {
+            Ui.Error("Pick a profile first.");
+            return;
+        }
+        ApplyProfile(_viewed);
+    }
+
+    private void ApplyProfile(FlagProfile profile) => Try(() =>
+    {
+        var result = LiveSession.ApplyProfile(profile);
+        var message = $"Applied {result.Applied} flags from {profile.Name}";
+        if (result.Reverted > 0) message += $", reverted {result.Reverted} from the previous profile";
+        if (result.Skipped > 0) message += $", {result.Skipped} not in this dump";
+        if (result.Failed > 0) message += $", {result.Failed} failed (see log)";
+        if (profile.RobloxVersion.Length > 0 && LiveSession.Dump is { } dump && profile.RobloxVersion != dump.RobloxVersion)
+            message += $". The profile was made for {profile.RobloxVersion}";
+        Ui.Message(message + ".\n\nRejoin the game for graphics flags to take effect.");
+    });
+
     private FlagEntry? Selected => _results.SelectedItem as FlagEntry;
 
     private void OnRestored(IReadOnlyList<string> names)
@@ -183,6 +288,7 @@ public sealed class LiveFlagsPage : PupPage
     {
         LiveSession.LoadDump(Store.Settings.LiveDumpPath);
         RunSearch();
+        if (_viewedPath.Length > 0) ShowProfile(_viewedPath);
     });
 
     private void Attach() => Try(() => LiveSession.Attach());
@@ -270,18 +376,8 @@ public sealed class LiveFlagsPage : PupPage
         Directory.CreateDirectory(FlagProfile.Folder);
         var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "Flag profile|*.flags|All files|*.*", InitialDirectory = FlagProfile.Folder };
         if (dialog.ShowDialog() != true) return;
-        Try(() =>
-        {
-            var profile = FlagProfile.Load(dialog.FileName);
-            var result = LiveSession.ApplyProfile(profile);
-            var message = $"Applied {result.Applied} flags from {profile.Name}";
-            if (result.Reverted > 0) message += $", reverted {result.Reverted} from the previous profile";
-            if (result.Skipped > 0) message += $", {result.Skipped} not in this dump";
-            if (result.Failed > 0) message += $", {result.Failed} failed (see log)";
-            if (profile.RobloxVersion.Length > 0 && LiveSession.Dump is { } dump && profile.RobloxVersion != dump.RobloxVersion)
-                message += $". The profile was made for {profile.RobloxVersion}";
-            Ui.Message(message + ".\n\nRejoin the game for graphics flags to take effect.");
-        });
+        ShowProfile(dialog.FileName);
+        if (_viewed is not null) ApplyProfile(_viewed);
     }
 
     private void SaveProfile()
@@ -294,7 +390,11 @@ public sealed class LiveFlagsPage : PupPage
         Directory.CreateDirectory(FlagProfile.Folder);
         var dialog = new Microsoft.Win32.SaveFileDialog { Filter = "Flag profile|*.flags", DefaultExt = "flags", InitialDirectory = FlagProfile.Folder };
         if (dialog.ShowDialog() != true) return;
-        Try(() => LiveSession.SnapshotProfile(Path.GetFileNameWithoutExtension(dialog.FileName)).Save(dialog.FileName));
+        Try(() =>
+        {
+            LiveSession.SnapshotProfile(Path.GetFileNameWithoutExtension(dialog.FileName)).Save(dialog.FileName);
+            ShowProfile(dialog.FileName);
+        });
     }
 
     private void Refresh()

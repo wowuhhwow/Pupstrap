@@ -51,10 +51,24 @@ public sealed class FlagProfile
         {
             var fileName = resource.Split('.')[^2] + ".flags";
             var target = System.IO.Path.Combine(Folder, fileName);
-            if (File.Exists(target) && !overwrite) continue;
             using var stream = assembly.GetManifestResourceStream(resource)!;
-            using var file = File.Create(target);
-            stream.CopyTo(file);
+            using var reader = new StreamReader(stream);
+            var bundled = reader.ReadToEnd();
+            if (!overwrite && File.Exists(target) && Revision(File.ReadAllText(target)) >= Revision(bundled)) continue;
+            File.WriteAllText(target, bundled);
         }
+    }
+
+    private static int Revision(string text)
+    {
+        foreach (var raw in text.Split('\n'))
+        {
+            var line = raw.Trim();
+            const string prefix = "# revision=";
+            if (line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+                int.TryParse(line[prefix.Length..], NumberStyles.None, CultureInfo.InvariantCulture, out var revision))
+                return revision;
+        }
+        return 0;
     }
 }
